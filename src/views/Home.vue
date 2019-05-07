@@ -3,7 +3,6 @@
     <!-- <img alt="Vue logo" src="../assets/logo.png"> -->
     <!-- <HelloWorld msg="Welcome to Your Vue.js App"/> -->
     <div id="targetText">{{targetText.substring(position)}}</div>
-    <div>{{times}}</div>
     <div>{{wpm}} wpm</div>
     <div>{{accuracy}} accuracy</div>
     <div>
@@ -18,8 +17,19 @@
 <script>
 // @ is an alias to /src
 // import HelloWorld from '@/components/HelloWorld.vue'
+import axios from 'axios'
 
 const average = list => list.reduce((prev, curr) => prev + curr) / list.length;
+function randomChar(length) {
+   let result           = '';
+   let characters       = 'abcdefghijklmnopqrstuvwxyz';
+   let charactersLength = characters.length;
+   for ( let i = 0; i < length; i++ ) {
+      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+   }
+   return result;
+}
+
 
 export default {
   name: "home",
@@ -28,7 +38,7 @@ export default {
   },
   data() {
     return {
-      targetText: "You have just taken your first step toward getting involved. Before you get started, we ask that you please observe the Ubuntu Code of Conduct. It’s not very long and it will help you get started.",
+      targetText: "You have just taken your first step toward getting involved.",
       position: 0,
       time: 0,
       times: [],
@@ -37,9 +47,11 @@ export default {
   },
   mounted() {
     document.addEventListener("keypress", this.onPress);
+    this.getWords()
   },
   methods: {
     onPress(event) {
+      event.preventDefault();
       console.log(event.key)
       if (event.key === this.targetText[this.position]) {
         if (this.time) {
@@ -65,6 +77,17 @@ export default {
       this.time = 0
       this.times = []
       this.errorsN = 0
+    },
+    getWords(preferredKey) {
+      let vm = this
+      let sp = `*${randomChar(1)}*`
+      axios.get(`https://api.datamuse.com/words?sp=${sp}&max=10`)
+        .then(function (response) {
+          vm.targetText = response.data.map(el => el.word).join(' ')
+        })
+        .catch(function (error) {
+          vm.targetText = 'Oooop something is wrong with the service, sorry !'
+        })
     }
   },
   computed: {
