@@ -1,4 +1,8 @@
-# typingmaster
+# TypingPractice
+
+Well, for the moment it sucks a little bit. But it won't soon.
+
+https://vibrant-montalcini-a34b62.netlify.com/#/
 
 ## Project setup
 ```
