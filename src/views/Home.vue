@@ -1,16 +1,37 @@
 <template>
   <div>
-    <!-- <img alt="Vue logo" src="../assets/logo.png"> -->
-    <!-- <HelloWorld msg="Welcome to Your Vue.js App"/> -->
-    <div id="targetText">{{targetText.substring(position)}}</div>
-    <div>{{wpm}} wpm</div>
-    <div>{{accuracy}} accuracy</div>
-    <div>
-      {{worstAccuracy}}
-    </div>
-    <div>
-      <Highcharts :options="chartOptions"/>
-    </div>
+    <section class="hero pt-48">
+      <div class="hero-body">
+        <div class="container-fluid">
+          <div class="columns">
+            <div class="column is-6 is-offset-6">
+              <div id="targetText" v-html="formattedTargetText">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="testResults" class="hero">
+      <div class="hero-body">
+        <div class="container">
+          <div v-if="wpm">{{wpm}} wpm</div>
+          <div v-if="accuracy">{{accuracy}} accuracy</div>
+          <div v-if="testIsDone" class="pt-48">
+            Next targeted lesson on <strong style="color: red;">{{getTargetKey}}</strong><br>
+            Press <strong>[Enter]</strong> to continue
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <section class=section v-if="testIsDone">
+      <div class="container">
+        <Highcharts :options="chartOptions"/>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -21,7 +42,7 @@ let ls = window.localStorage;
 
 const average = list => list.reduce((prev, curr) => prev + curr) / list.length;
 
-const timeToWpm = time => Math.round(60. / ((time * 5) / 1000))
+const timeToWpm = time => Math.round(60 / ((time * 5) / 1000));
 
 function randomChar(length) {
   let result = "";
@@ -49,14 +70,15 @@ export default {
   },
   data() {
     return {
-      targetText: "",
+      targetTextList: [],
       position: 0,
       time: 0,
       times: [],
       errorsN: 0,
       errors: {},
       hasStarted: false,
-      typingStats: { speed: {}, errors: {}, count: {} }
+      typingStats: { speed: {}, errors: {}, count: {} },
+      targetTextEl: ''
     };
   },
   watch: {
@@ -67,6 +89,7 @@ export default {
     }
   },
   mounted() {
+    this.targetTextEl = document.getElementById('targetText')
     document.addEventListener("keypress", this.onPress);
     if (ls.getItem("typingStats")) {
       this.typingStats = JSON.parse(ls.getItem("typingStats"));
@@ -77,6 +100,7 @@ export default {
     onPress(event) {
       event.preventDefault();
       let targetKey = this.targetText[this.position];
+      console.log(targetKey)
       if (event.key === targetKey) {
         this.hasStarted = true;
         if (this.time) {
@@ -95,14 +119,17 @@ export default {
           } else {
             this.errors[targetKey] = 1;
           }
+          this.targetTextEl.classList.add('errorLetter')
+          setTimeout(() => this.targetTextEl.classList.remove('errorLetter'), 200)
         } else {
-          if (event.key === "Enter") {
+          if (event.key === 'Enter') {
             this.startNew();
           }
         }
       }
     },
     startNew() {
+      this.targetText = ''
       this.position = 0;
       this.time = 0;
       this.times = [];
@@ -112,17 +139,22 @@ export default {
     },
     getWords(preferredKey) {
       let vm = this;
-      let sp = `*${this.worstAccuracy}*`;
+      if (this.getTargetKey) {
+      let sp = `*${this.getTargetKey}*`;
       axios
-        .get(`https://api.datamuse.com/words?sp=${sp}&max=300`)
+        .get(`https://api.datamuse.com/words?sp=${sp}&max=500`)
         .then(function(response) {
-          const shuffled = response.data.map(el => el.word).sort(() => 0.5 - Math.random());
-          let selected = shuffled.slice(0, 10);
-          vm.targetText = selected.join(" ");
+          const shuffled = response.data
+            .map(el => el.word)
+            .sort(() => 0.5 - Math.random());
+          vm.targetTextList = shuffled.slice(0, 10);
         })
         .catch(function(error) {
-          vm.targetText = "Oooop something is wrong with the service, sorry !";
+          vm.targetTextList = [];
         });
+      } else {
+        vm.targetTextList = ['the', 'quick', 'brown', 'fox', 'jumps', 'over', 'the', 'lazy', 'dog']
+      }
     },
     addTheStats() {
       this.typingStats.speed = sumObjectsByKey(
@@ -141,18 +173,43 @@ export default {
     }
   },
   computed: {
+    formattedTargetText() {
+      return this.targetText.substring(this.position).replace(/ /g, '<span class="white">²</span>');
+    },
+    targetText() {
+      return this.targetTextList.join(' ')
+    },
+    getTargetKey() {
+      if (this.smallestCount.count < 100) {
+        return this.smallestCount.key
+      } else {
+        return this.worstAccuracy
+      }
+    },
     worstAccuracy() {
-      let minAccuracy = 1.
-      let badKey = ''
+      let minAccuracy = 1;
+      let badKey = '';
       for (let key of Object.keys(this.typingStats.count)) {
-        let accuracy = 1. - (this.typingStats.errors[key] || 0) / this.typingStats.count[key]
-        console.log(key)
+        let accuracy =
+          1 - (this.typingStats.errors[key] || 0) / this.typingStats.count[key];
         if (accuracy < minAccuracy) {
-          minAccuracy = accuracy
-          badKey = key
+          minAccuracy = accuracy;
+          badKey = key;
         }
       }
-      return badKey
+      return badKey;
+    },
+    smallestCount() {
+      let smallestCount = 1000000000;
+      let targetKey = '';
+      for (let key of Object.keys(this.typingStats.count)) {
+        let count = this.typingStats.count[key];
+        if (count < smallestCount) {
+          smallestCount = count;
+          targetKey = key;
+        }
+      }
+      return {key: targetKey, count: smallestCount};
     },
     testIsDone() {
       return this.position === this.targetText.length && this.hasStarted;
@@ -164,7 +221,7 @@ export default {
           if (key in acc) {
             acc[key] += cv.time;
           } else {
-            acc[key] = 0;
+            acc[key] = cv.time;
           }
           return acc;
         }, {});
@@ -180,7 +237,7 @@ export default {
           if (key in acc) {
             acc[key]++;
           } else {
-            acc[key] = 0;
+            acc[key] = 1;
           }
           return acc;
         }, {});
@@ -190,28 +247,30 @@ export default {
       }
     },
     seriesForScatterPlot() {
-      return Object.keys(this.typingStats.count)
-      .map(key => {
+      return Object.keys(this.typingStats.count).map(key => {
         return {
           name: key,
-          color: "red",
+          showInLegend: false,
+          color: key === this.getTargetKey ? 'red' : 'rgba(0,0,255,0.5)',
           data: [
             [
-              // 1,1
-              timeToWpm(this.typingStats.speed[key] / this.typingStats.count[key]),
-              1. - (this.typingStats.errors[key] || 0.) / this.typingStats.count[key]
+              timeToWpm(
+                this.typingStats.speed[key] / this.typingStats.count[key]
+              ),
+              1 -
+                (this.typingStats.errors[key] || 0) /
+                  this.typingStats.count[key]
             ]
           ]
         };
       });
-
     },
     justTimes() {
       return this.times.map(k => k.time);
     },
     wpm() {
       if (this.testIsDone) {
-        return timeToWpm(average(this.justTimes))
+        return timeToWpm(average(this.justTimes));
       }
     },
     accuracy() {
@@ -252,7 +311,7 @@ export default {
           scatter: {
             marker: {
               radius: 5,
-              symbol: 'circle',
+              symbol: "circle",
               states: {
                 hover: {
                   enabled: true,
@@ -282,7 +341,32 @@ export default {
 
 <style scoped lang="scss">
 #targetText {
+  font-size: 30px;
+  height: 3em;
+  letter-spacing: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+#targetText::first-letter {
+  text-decoration : underline black double !important;
+}
+
+.errorLetter::first-letter {
+  color: red;
+}
+
+#testResults {
   text-align: center;
-  font-size: 40px;
+}
+
+.pt-48 {
+  padding-top: 48px;
+}
+</style>
+
+<style>
+.white {
+  color : white;
 }
 </style>
