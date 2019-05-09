@@ -100,7 +100,6 @@ export default {
     onPress(event) {
       event.preventDefault();
       let targetKey = this.targetText[this.position];
-      console.log(targetKey)
       if (event.key === targetKey) {
         this.hasStarted = true;
         if (this.time) {
@@ -129,7 +128,7 @@ export default {
       }
     },
     startNew() {
-      this.targetText = ''
+      this.targetTextList = []
       this.position = 0;
       this.time = 0;
       this.times = [];
@@ -147,7 +146,7 @@ export default {
           const shuffled = response.data
             .map(el => el.word)
             .sort(() => 0.5 - Math.random());
-          vm.targetTextList = shuffled.slice(0, 10);
+          vm.targetTextList = shuffled.slice(0, 15);
         })
         .catch(function(error) {
           vm.targetTextList = [];
