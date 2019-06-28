@@ -146,7 +146,7 @@ export default {
           const shuffled = response.data
             .map(el => el.word)
             .sort(() => 0.5 - Math.random());
-          vm.targetTextList = shuffled.slice(0, 2);
+          vm.targetTextList = shuffled.slice(0, 15);
         })
         .catch(function(error) {
           vm.targetTextList = [];
