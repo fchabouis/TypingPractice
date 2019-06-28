@@ -40,7 +40,7 @@ import axios from "axios";
 
 let ls = window.localStorage;
 
-const average = list => list.reduce((prev, curr) => prev + curr) / list.length;
+const average = list => list.reduce((prev, curr) => prev + curr, 0) / list.length;
 
 const timeToWpm = time => Math.round(60 / ((time * 5) / 1000));
 
@@ -146,7 +146,7 @@ export default {
           const shuffled = response.data
             .map(el => el.word)
             .sort(() => 0.5 - Math.random());
-          vm.targetTextList = shuffled.slice(0, 15);
+          vm.targetTextList = shuffled.slice(0, 2);
         })
         .catch(function(error) {
           vm.targetTextList = [];
@@ -179,7 +179,7 @@ export default {
       return this.targetTextList.join(' ')
     },
     getTargetKey() {
-      if (this.smallestCount.count < 100) {
+      if (this.smallestCount.count < 30) {
         return this.smallestCount.key
       } else {
         return this.worstAccuracy
